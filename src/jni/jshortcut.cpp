@@ -9,6 +9,35 @@
 //strings from the registry key in HKEY_CURRENT_USER:
 //Software\MicroSoft\Windows\CurrentVersion\Explorer\Shell Folders
 
+static char* stringType = "Ljava/lang/String;";
+static jclass JShellLinkClass;
+
+// Get a Java string value from a JShellLink object.
+static jstring
+getJavaString(
+	JNIEnv *env,
+	jobject jobj,		// a JShellLink object
+	char *fieldName)	// the name of the String field to get
+{
+	jfieldID fid;
+
+	if (!JShellLinkClass) {
+		char *className = "net/jimmc/jshortcut/JShellLink";
+		JShellLinkClass = env->FindClass(className);
+		if (!JShellLinkClass) {
+			fprintf(stderr,"Can't find class %s\n",className);
+			return NULL;
+		}
+	}
+	fid = env->GetFieldID(JShellLinkClass,fieldName,stringType);
+	if (fid==0) {
+		//TBD error, throw exception?
+		fprintf(stderr,"Can't find field %s\n",fieldName);
+		return NULL;
+	}
+	return (jstring)env->GetObjectField(jobj,fid);
+}
+
 // Get the path for one of the special Windows directories such as
 // the desktop or the Program Files directory.
 static
@@ -37,7 +66,8 @@ JShortcutCreate(		// Create a shortcut
 	const char *folder,	// The directory in which to create the shortcut
 	const char *name,	// Base name of the shortcut
 	const char *description,// Description of the shortcut
-	const char *path	// Path to the target of the link
+	const char *path,	// Path to the target of the link
+	const char *workingDir	// Working directory for the shortcut
 )
 {
 	char *errStr = NULL;
@@ -69,9 +99,7 @@ JShortcutCreate(		// Create a shortcut
 	}
 
 	shellLink->SetPath(path);
-	//We probably want to call shellLink->SetWorkingDirectory(pathDir)
-	//where pathDir is the directory portion of path
-	//(use ExtractFilePath?)
+	shellLink->SetWorkingDirectory(workingDir);
 	shellLink->SetDescription(description);
 
 	//One example elsewhere adds this line:
@@ -136,23 +164,33 @@ err:
 JNIEXPORT jboolean JNICALL
 Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	JNIEnv *env,
-	jobject jobj,	//this
-	jstring jFolder,	//where to create the link
-	jstring jName,		//base name of the link
-	jstring jDesc,		//description of the shortcut
-	jstring jPath)		//taget of the link
+	jobject jobj)	//this
 {
-	const char* folder = env->GetStringUTFChars(jFolder,NULL);
-	const char* name = env->GetStringUTFChars(jName,NULL);
-	const char* desc = env->GetStringUTFChars(jDesc,NULL);
-	const char* path = env->GetStringUTFChars(jPath,NULL);
+	jstring jFolder = getJavaString(env,jobj,"folder");
+	jstring jName = getJavaString(env,jobj,"name");
+	jstring jDesc = getJavaString(env,jobj,"description");
+	jstring jPath = getJavaString(env,jobj,"path");
+	jstring jWorkingDir = getJavaString(env,jobj,"workingDirectory");
 
-	HRESULT h = JShortcutCreate(folder,name,desc,path);
+	const char* folder = jFolder?env->GetStringUTFChars(jFolder,NULL):NULL;
+	const char* name = jName?env->GetStringUTFChars(jName,NULL):NULL;
+	const char* desc = jDesc?env->GetStringUTFChars(jDesc,NULL):NULL;
+	const char* path = jPath?env->GetStringUTFChars(jPath,NULL):NULL;
+	const char* workingDir =
+		jWorkingDir?env->GetStringUTFChars(jWorkingDir,NULL):NULL;
 
-	env->ReleaseStringUTFChars(jFolder,folder);
-	env->ReleaseStringUTFChars(jName,name);
-	env->ReleaseStringUTFChars(jDesc,desc);
-	env->ReleaseStringUTFChars(jPath,path);
+	HRESULT h = JShortcutCreate(folder,name,desc,path,workingDir);
+
+	if (folder)
+		env->ReleaseStringUTFChars(jFolder,folder);
+	if (name)
+		env->ReleaseStringUTFChars(jName,name);
+	if (desc)
+		env->ReleaseStringUTFChars(jDesc,desc);
+	if (path)
+		env->ReleaseStringUTFChars(jPath,path);
+	if (workingDir)
+		env->ReleaseStringUTFChars(jWorkingDir,workingDir);
 
 	return SUCCEEDED(h);
 }
@@ -171,7 +209,10 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
 		JShortcutGetDirectory(CSIDL_DESKTOP,buf);
 	} else if (strcmp(which,"personal")==0) {	// My Documents
 		JShortcutGetDirectory(CSIDL_PERSONAL,buf);
-//TBD - got the wrong constant for program files
+//Unfortunately, the CSIDL_PROGRAM_FILES constant was not introduced until
+//just after Windows 98, so it doesn't work for many Windows systems.
+//Use jRegistryKey and look at
+//HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ProgramFilesDir
 //	} else if (strcmp(which,"program_files")==0) {
 //		JShortcutGetDirectory(CSIDL_PROGRAM_FILES,buf);
 	} else if (strcmp(which,"start_menu")==0) {

@@ -25,19 +25,22 @@ import java.io.File;
 public class JShellLink {
     /// The folder in which this shortcut is found on disk.
     // @see #getFolder
-    String folder;
+    String folder;	//accessed from native code by name
 
     // The base name of this shortcut within the folder.
     // @see #getName
-    String name;
+    String name;	//accessed from native code by name
 
     // The description of this shortcut.
     // @see #getDescription
-    String description;
+    String description;	//accessed from native code by name
 
     // The path or target of this shortcut.
     // @see #getPath
-    String path;
+    String path;	//accessed from native code by name
+
+    // The working directory for the shortcut.
+    String workingDirectory;	//accessed from native code by name
 
     // Load our native library from PATH or CLASSPATH when this class is loaded.
     static {
@@ -156,9 +159,16 @@ public class JShellLink {
         return description;
     }
 
-    /** Set the path for this shortcut. */
+    /** Set the path for this shortcut.
+     * If the working directory is null, this call also sets the
+     * working directory to the parent of the given path.
+     */
     public void setPath(String path) {
         this.path = path;
+	if (workingDirectory==null) {
+	    String parent = (new File(path)).getParent();
+	    setWorkingDirectory(parent);
+	}
     }
 
     /** Get the path for this shortcut. */
@@ -166,21 +176,28 @@ public class JShellLink {
         return path;
     }
 
+    /** Set the working directory for this shortcut. */
+    public void setWorkingDirectory(String workingDirectory) {
+        this.workingDirectory = workingDirectory;
+    }
+
+    /** Get the working directory for this shortcut. */
+    public String getWorkingDirectory() {
+        return workingDirectory;
+    }
+
     /** Write out this shortcut to disk. */
     public void save() {
-        nCreate(folder,name,description,path);
+        nCreate();
     }
 
   //Native methods
 
     /** Create a shortcut.
-     * @param folder The location of the shortcut.
-     * @param name The base name of the shortcut.
-     * @param description The description of the shortcut.
-     * @param path The target of the shortcut.
+     * The native code reads the following variables from this object:
+     * folder, name, description, path, workingDirectory.
      */
-    private native boolean nCreate(String folder, String name,
-		    String description, String path);
+    private native boolean nCreate();
 
     /** Get the location of a special directory.
      */
