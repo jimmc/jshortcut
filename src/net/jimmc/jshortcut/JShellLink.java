@@ -42,6 +42,9 @@ public class JShellLink {
     // The working directory for the shortcut.
     String workingDirectory;	//accessed from native code by name
 
+    // The location of the icon for the shortcut.
+    String iconLocation;	//accessed from native code by name
+
     // Load our native library from PATH or CLASSPATH when this class is loaded.
     static {
 	// The CLASSPATH searching code below was written by Jim McBeath
@@ -118,15 +121,12 @@ public class JShellLink {
     public JShellLink() {
     }
 
-    /** Create a JShellLink object with some values.
+    /** Create a JShellLink object for a specified location.
      */
-    public JShellLink(String folder, String name, String description,
-    			String path) {
+    public JShellLink(String folder, String name) {
     	this();
 	setFolder(folder);
 	setName(name);
-	setDescription(description);
-	setPath(path);
     }
 
     /** Set the folder for this shortcut. */
@@ -186,6 +186,25 @@ public class JShellLink {
         return workingDirectory;
     }
 
+    /** Set the icon location for this shortcut. */
+    public void setIconLocation(String iconLocation) {
+        this.iconLocation = iconLocation;
+    }
+
+    /** Get the icon location for this shortcut. */
+    public String getIconLocation() {
+        return iconLocation;
+    }
+
+    /** Load a shortcut from disk.
+     */
+    public void load() {
+        if (!nRead()) {
+	    throw new RuntimeException("Failed to load ShellLink");
+	    	//TBD - better error info
+	}
+    }
+
     /** Write out this shortcut to disk. */
     public void save() {
         if (!nCreate()) {
@@ -196,9 +215,17 @@ public class JShellLink {
 
   //Native methods
 
+    /** Load a shortcut.
+     * The native code reads the following variables from this object:
+     * folder, name.
+     * The native code fills in the following variables in this object:
+     * description, path, workingDirectory, iconLocation.
+     */
+    private native boolean nRead();
+
     /** Create a shortcut.
      * The native code reads the following variables from this object:
-     * folder, name, description, path, workingDirectory.
+     * folder, name, description, path, workingDirectory, iconLocation.
      */
     private native boolean nCreate();
 

@@ -17,7 +17,7 @@ JShortcutGetJavaString(
 	char *fieldName)	// the name of the String field to get
 {
 	jfieldID fid;
-	jstring js;
+	jstring fieldValue;
 
 	if (!JShellLinkClass) {
 		char *className = "net/jimmc/jshortcut/JShellLink";
@@ -33,8 +33,37 @@ JShortcutGetJavaString(
 		fprintf(stderr,"Can't find field %s\n",fieldName);
 		return NULL;
 	}
-	js = (jstring)env->GetObjectField(jobj,fid);
-	return js;
+	fieldValue = (jstring)env->GetObjectField(jobj,fid);
+	return fieldValue;
+}
+
+// Set a Java string value into a JShellLink object.
+static
+int			// 0 if error, 1 if OK
+JShortcutSetJavaString(
+	JNIEnv *env,
+	jobject jobj,		// a JShellLink object
+	char *fieldName,	// the name of the String field to set
+	jstring fieldValue)	// the value to set into that field
+{
+	jfieldID fid;
+
+	if (!JShellLinkClass) {
+		char *className = "net/jimmc/jshortcut/JShellLink";
+		JShellLinkClass = env->FindClass(className);
+		if (!JShellLinkClass) {
+			fprintf(stderr,"Can't find class %s\n",className);
+			return 0;
+		}
+	}
+	fid = env->GetFieldID(JShellLinkClass,fieldName,stringType);
+	if (fid==0) {
+		//TBD error, throw exception?
+		fprintf(stderr,"Can't find field %s\n",fieldName);
+		return 0;
+	}
+	env->SetObjectField(jobj,fid,fieldValue);
+	return 1;
 }
 
 // Get the path for one of the special Windows directories such as
@@ -102,7 +131,8 @@ JShortcutCreate(		// Create a shortcut
 	const char *name,	// Base name of the shortcut
 	const char *description,// Description of the shortcut
 	const char *path,	// Path to the target of the link
-	const char *workingDir	// Working directory for the shortcut
+	const char *workingDir,	// Working directory for the shortcut
+	const char *iconLoc	// Path to icon
 )
 {
 	char *errStr = NULL;
@@ -133,12 +163,14 @@ JShortcutCreate(		// Create a shortcut
 		goto err;
 	}
 
+	if (description!=NULL)
+		shellLink->SetDescription(description);
 	if (path!=NULL)
 		shellLink->SetPath(path);
 	if (workingDir!=NULL)
 		shellLink->SetWorkingDirectory(workingDir);
-	if (description!=NULL)
-		shellLink->SetDescription(description);
+	if (iconLoc!=NULL)
+		shellLink->SetIconLocation(iconLoc);
 
 	//One example elsewhere adds this line:
 	//shellLink->SetShowCommand(SW_SHOW);
@@ -203,14 +235,121 @@ err:
 	return h;
 }
 
+// Read an existing shell link
+static
+HRESULT			// status: test using FAILED or SUCCEEDED macro
+JShortcutRead(		// Read a shortcut
+	const char *folder,	// The directory in which to create the shortcut
+	const char *name,	// Base name of the shortcut
+	char *description,	// RETURN Description of the shortcut
+	const int descriptionSize,
+	char *path,		// RETURN Path to the target of the link
+	const int pathSize,
+	char *workingDir,	// RETURN Working directory for the shortcut
+	const int workingDirSize,
+	char *iconLoc,		// RETURN Icon location
+	cont int iconLocSize
+		//All returned chars are written into the caller's buffers
+)
+{
+	char *errStr = NULL;
+	HRESULT h;
+	IShellLink *shellLink = NULL;
+	IPersistFile *persistFile = NULL;
+	TCHAR buf[MAX_PATH+1];
+	WORD wName[MAX_PATH+1];
+	int id;
+
+	// Initialize the COM library
+	h = CoInitialize(NULL);
+	if (FAILED(h)) {
+		errStr = "Failed to initialize COM library";
+		goto err;
+	}
+
+	h = CoCreateInstance( CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
+			IID_IShellLink, (PVOID*)&shellLink );
+	if (FAILED(h)) {
+		errStr = "Failed to create IShellLink";
+		goto err;
+	}
+
+	h = shellLink->QueryInterface(IID_IPersistFile, (PVOID*)&persistFile);
+	if (FAILED(h)) {
+		errStr = "Failed to get IPersistFile";
+		goto err;
+	}
+
+	//Append the shortcut name to the folder
+	buf[0] = 0;
+	if (strlen(folder)+strlen(name)+6 > sizeof(buf)) {
+		errStr = "Folder+name is too long";
+		goto err;
+	}
+	strcat(buf,folder);
+	strcat(buf,"\\");
+	strcat(buf,name);
+	strcat(buf,".lnk");
+	MultiByteToWideChar(CP_ACP,0,buf,-1,wName,MAX_PATH);
+
+//TBD - figure out how to Load a shortcut (IPersistFile)
+
+	//Load the shortcut From disk
+	h = persistFile->Load(wName, 0);
+	if (FAILED(h)) {
+		errStr = "Failed to load shortcut";
+		goto err;
+	}
+
+	//Read the field values
+	h = shellLink->GetDescription(desc,descSize);
+	if (FAILED(h)) {
+		errStr = "Failed to read description";
+		goto err;
+	}
+
+	h = shellLink->GetPath(path,pathSize,NULL,SLGP_UNCPRIORITY);
+	if (FAILED(h)) {
+		errStr = "Failed to read path";
+		goto err;
+	}
+
+	h = shellLink->GetWorkingDirectory(workingDir,workingDirSize);
+	if (FAILED(h)) {
+		errStr = "Failed to read working directory";
+		goto err;
+	}
+
+	h = shellLink->GetIconLocation(iconLoc,iconLocSize,&id);
+	if (FAILED(h)) {
+		errStr = "Failed to read icon";
+		goto err;
+	}
+
+	persistFile->Release();
+	shellLink->Release();
+	CoUninitialize();
+	return h;
+
+err:
+	if (persistFile!=NULL)
+		persistFile->Release();
+	if (shellLink!=NULL)
+		shellLink->Release();
+	CoUninitialize();
+	fprintf(stderr,"Error: %s\n",errStr);
+	//TBD - throw exception with errStr
+	return h;
+}
+
 // Create a shell link (shortcut) from Java.
 JNIEXPORT jboolean JNICALL
 Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	JNIEnv *env,
 	jobject jobj)	//this
 {
-	jstring jFolder, jName, jDesc, jPath, jWorkingDir;
-	const char *folder, *name, *desc, *path, *workingDir;
+	jstring jFolder, jName, jDesc, jPath, jWorkingDir, jIconLoc;
+	const char *folder, *name, *desc, *path, *workingDir, *iconLoc;
 
 	//If we don't clear JShellLinkClass between calls, we get an
 	//EXCEPTION_ACCESS_VIOLATION when we call GetFieldID on the
@@ -222,6 +361,7 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	jDesc = JShortcutGetJavaString(env,jobj,"description");
 	jPath = JShortcutGetJavaString(env,jobj,"path");
 	jWorkingDir = JShortcutGetJavaString(env,jobj,"workingDirectory");
+	jIconLoc = JShortcutGetJavaString(env,jobj,"iconLocation");
 
 	if (jFolder==NULL || jName==NULL)
 		return false;		//error, incompletely specified
@@ -231,8 +371,9 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	desc = jDesc?env->GetStringUTFChars(jDesc,NULL):NULL;
 	path = jPath?env->GetStringUTFChars(jPath,NULL):NULL;
 	workingDir = jWorkingDir?env->GetStringUTFChars(jWorkingDir,NULL):NULL;
+	iconLoc = jIconLoc?env->GetStringUTFChars(jIconLoc,NULL):NULL;
 
-	HRESULT h = JShortcutCreate(folder,name,desc,path,workingDir);
+	HRESULT h = JShortcutCreate(folder,name,desc,path,workingDir,iconLoc);
 
 	if (folder)
 		env->ReleaseStringUTFChars(jFolder,folder);
@@ -244,6 +385,57 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 		env->ReleaseStringUTFChars(jPath,path);
 	if (workingDir)
 		env->ReleaseStringUTFChars(jWorkingDir,workingDir);
+	if (iconLoc)
+		env->ReleaseStringUTFChars(jIconLoc,iconLoc);
+
+	return SUCCEEDED(h);
+}
+
+// Read a shell link (shortcut) from Java.
+JNIEXPORT jboolean JNICALL
+Java_net_jimmc_jshortcut_JShellLink_nRead(
+	JNIEnv *env,
+	jobject jobj)	//this
+{
+	jstring jFolder, jName, jDesc, jPath, jWorkingDir;
+	const char *folder, *name;
+	char desc[MAX_PATH+1];
+	char path[MAX_PATH+1];
+	char workingDir[MAX_PATH+1];
+	char iconLoc[MAX_PATH+1];
+
+	//See comment in Java_net_jimmc_jshortcut_JShellLink_nCreate
+	JShellLinkClass = NULL;
+
+	jFolder = JShortcutGetJavaString(env,jobj,"folder");
+	jName = JShortcutGetJavaString(env,jobj,"name");
+
+	if (jFolder==NULL || jName==NULL)
+		return false;		//error, incompletely specified
+
+	folder = jFolder?env->GetStringUTFChars(jFolder,NULL):NULL;
+	name = jName?env->GetStringUTFChars(jName,NULL):NULL;
+
+	HRESULT h = JShortcutRead(folder,name,
+			desc,sizeof(desc),path,sizeof(path),
+			workingDir,sizeof(workingDir),iconLoc,sizeof(iconLoc));
+
+	//TBD - if the shortcut does not exist, what should we do?
+
+	if (folder)
+		env->ReleaseStringUTFChars(jFolder,folder);
+	if (name)
+		env->ReleaseStringUTFChars(jName,name);
+
+	jDesc = env->NewStringUTF(desc);
+	jPath = env->NewStringUTF(path);
+	jWorkingDir = env->NewStringUTF(workingDir);
+	jIconLoc = env->NewStringUTF(iconLoc);
+
+	JShortcutSetJavaString(env,jobj,"description",jDesc);
+	JShortcutSetJavaString(env,jobj,"path",jPath);
+	JShortcutSetJavaString(env,jobj,"workingDirectory",jWorkingDir);
+	JShortcutSetJavaString(env,jobj,"iconLocation",jIconLoc);
 
 	return SUCCEEDED(h);
 }
