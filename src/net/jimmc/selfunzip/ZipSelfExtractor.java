@@ -37,7 +37,7 @@ public class ZipSelfExtractor extends JFrame
 
     private String getJarFileName()
     {
-	jsClassName = JShellLink.class.getName().replace('.','/') + ".class";
+	jsClassName = "net/jimmc/jshortcut/JShellLink.class";
 	myClassName = this.getClass().getName().replace('.','/') + ".class";
 	URL urlJar =
 		this.getClass().getClassLoader().getSystemResource(myClassName);
