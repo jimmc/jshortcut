@@ -1,4 +1,4 @@
-JShortcut					November 17, 2002
+JShortcut					November 18, 2002
 
 Building a new version
 ----------------------
@@ -13,10 +13,16 @@ Building a new version
 	README.html		Version and date
 	VERSION			Version
 
+    The Makefiles are set up for GNU make.  You can build everything
+    except for the DLL on any machine with Java and GNU make.  You can
+    build the DLL separately on a Windows machine by running the
+    compile.bat script in the src/jni directory.  Do this just after
+    doing the "make all" in the sequence below.
+
     In the top level directory, execute these commands:
 
 	make allclean		Clean up before building
-        make all		Builds everything (bin, apidoc, xmldoc)
+        make all		Builds everything (jar, apidoc)
 	make rel		Builds a release kit named jshortcut-<version>
 	make reljar		Builds a self-extracting jar file
 					from the release kit
