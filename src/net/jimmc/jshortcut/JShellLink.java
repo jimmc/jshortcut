@@ -188,7 +188,10 @@ public class JShellLink {
 
     /** Write out this shortcut to disk. */
     public void save() {
-        nCreate();
+        if (!nCreate()) {
+	    throw new RuntimeException("Failed to save ShellLink");
+	    	//TBD - better error info
+	}
     }
 
   //Native methods
