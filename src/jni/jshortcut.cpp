@@ -6,6 +6,7 @@
 #include <jni.h>
 
 static char* stringType = "Ljava/lang/String;";
+static char* intType = "I";
 static jclass JShellLinkClass;
 
 // Get a Java string value from a JShellLink object.
@@ -66,6 +67,64 @@ JShortcutSetJavaString(
 	return 1;
 }
 
+// Get a Java int value from a JShellLink object.
+static
+jint
+JShortcutGetJavaInt(
+	JNIEnv *env,
+	jobject jobj,		// a JShellLink object
+	char *fieldName)	// the name of the String field to get
+{
+	jfieldID fid;
+	jint fieldValue;
+
+	if (!JShellLinkClass) {
+		char *className = "net/jimmc/jshortcut/JShellLink";
+		JShellLinkClass = env->FindClass(className);
+		if (!JShellLinkClass) {
+			fprintf(stderr,"Can't find class %s\n",className);
+			return NULL;
+		}
+	}
+	fid = env->GetFieldID(JShellLinkClass,fieldName,intType);
+	if (fid==0) {
+		//TBD error, throw exception?
+		fprintf(stderr,"Can't find field %s\n",fieldName);
+		return NULL;
+	}
+	fieldValue = env->GetIntField(jobj,fid);
+	return fieldValue;
+}
+
+// Set a Java int value into a JShellLink object.
+static
+int			// 0 if error, 1 if OK
+JShortcutSetJavaInt(
+	JNIEnv *env,
+	jobject jobj,		// a JShellLink object
+	char *fieldName,	// the name of the String field to set
+	jint fieldValue)	// the value to set into that field
+{
+	jfieldID fid;
+
+	if (!JShellLinkClass) {
+		char *className = "net/jimmc/jshortcut/JShellLink";
+		JShellLinkClass = env->FindClass(className);
+		if (!JShellLinkClass) {
+			fprintf(stderr,"Can't find class %s\n",className);
+			return 0;
+		}
+	}
+	fid = env->GetFieldID(JShellLinkClass,fieldName,intType);
+	if (fid==0) {
+		//TBD error, throw exception?
+		fprintf(stderr,"Can't find field %s\n",fieldName);
+		return 0;
+	}
+	env->SetIntField(jobj,fid,fieldValue);
+	return 1;
+}
+
 // Get the path for one of the special Windows directories such as
 // the desktop or the Program Files directory.
 static
@@ -123,16 +182,17 @@ JShortcutGetRegistryValue(
 	return 0;
 }
 
-// Create a new shell link
+// Save a new shell link
 static
 HRESULT			// status: test using FAILED or SUCCEEDED macro
-JShortcutCreate(		// Create a shortcut
+JShortcutSave(		// Save a shortcut
 	const char *folder,	// The directory in which to create the shortcut
 	const char *name,	// Base name of the shortcut
 	const char *description,// Description of the shortcut
 	const char *path,	// Path to the target of the link
 	const char *workingDir,	// Working directory for the shortcut
-	const char *iconLoc	// Path to icon
+	const char *iconLoc,	// Path to file containing icon
+	const int iconIndex	// Index of icon within the icon file
 )
 {
 	char *errStr = NULL;
@@ -163,18 +223,6 @@ JShortcutCreate(		// Create a shortcut
 		goto err;
 	}
 
-	if (description!=NULL)
-		shellLink->SetDescription(description);
-	if (path!=NULL)
-		shellLink->SetPath(path);
-	if (workingDir!=NULL)
-		shellLink->SetWorkingDirectory(workingDir);
-	if (iconLoc!=NULL)
-		shellLink->SetIconLocation(iconLoc);
-
-	//One example elsewhere adds this line:
-	//shellLink->SetShowCommand(SW_SHOW);
-
 	//Append the shortcut name to the folder
 	buf[0] = 0;
 	if (strlen(folder)+strlen(name)+6 > sizeof(buf)) {
@@ -187,37 +235,29 @@ JShortcutCreate(		// Create a shortcut
 	strcat(buf,".lnk");
 	MultiByteToWideChar(CP_ACP,0,buf,-1,wName,MAX_PATH);
 
+	// Load the file if it exists, to get the values for anything
+	// that we do not set.  Ignore errors, such as if it does not exist.
+	h = persistFile->Load(wName, 0);
+
+	// Set the fields for which the application has set a value
+	if (description!=NULL)
+		shellLink->SetDescription(description);
+	if (path!=NULL)
+		shellLink->SetPath(path);
+	if (workingDir!=NULL)
+		shellLink->SetWorkingDirectory(workingDir);
+	if (iconLoc!=NULL)
+		shellLink->SetIconLocation(iconLoc,iconIndex);
+
+	//One example elsewhere adds this line:
+	//shellLink->SetShowCommand(SW_SHOW);
+
 	//Save the shortcut to disk
 	h = persistFile->Save(wName, TRUE);
 	if (FAILED(h)) {
 		errStr = "Failed to save shortcut";
 		goto err;
 	}
-
-#if 0
-	//Now use the icon from shell32.dll for the shortcut
-	GetSystemDirectory(buf,sizeof(buf));
-	strcat(buf,"\\shell32.dll");	//TBD check for overflow
-
-	h = shellLink->SetIconLocation(buf,1);
-	if (FAILED(h)) {
-		errStr = "Failed to set icon";
-		goto err;
-	}
-
-	h = shellLink->GetIconLocation(buf,sizeof(buf),&id);
-	if (FAILED(h)) {
-		errStr = "Failed to verify icon";
-		goto err;
-	}
-
-	//Save the shelllink changes into the file
-	h = persistFile->Save(wName,TRUE);
-	if (FAILED(h)) {
-		errStr = "Failed to save icon";
-		goto err;
-	}
-#endif
 
 	persistFile->Release();
 	shellLink->Release();
@@ -235,10 +275,10 @@ err:
 	return h;
 }
 
-// Read an existing shell link
+// Load an existing shell link
 static
 HRESULT			// status: test using FAILED or SUCCEEDED macro
-JShortcutRead(		// Read a shortcut
+JShortcutLoad(		// Load a shortcut
 	const char *folder,	// The directory in which to create the shortcut
 	const char *name,	// Base name of the shortcut
 	char *description,	// RETURN Description of the shortcut
@@ -248,7 +288,8 @@ JShortcutRead(		// Read a shortcut
 	char *workingDir,	// RETURN Working directory for the shortcut
 	const int workingDirSize,
 	char *iconLoc,		// RETURN Icon location
-	cont int iconLocSize
+	const int iconLocSize,
+	int *iconIndex		// RETURN Icon index
 		//All returned chars are written into the caller's buffers
 )
 {
@@ -258,7 +299,6 @@ JShortcutRead(		// Read a shortcut
 	IPersistFile *persistFile = NULL;
 	TCHAR buf[MAX_PATH+1];
 	WORD wName[MAX_PATH+1];
-	int id;
 
 	// Initialize the COM library
 	h = CoInitialize(NULL);
@@ -292,8 +332,6 @@ JShortcutRead(		// Read a shortcut
 	strcat(buf,".lnk");
 	MultiByteToWideChar(CP_ACP,0,buf,-1,wName,MAX_PATH);
 
-//TBD - figure out how to Load a shortcut (IPersistFile)
-
 	//Load the shortcut From disk
 	h = persistFile->Load(wName, 0);
 	if (FAILED(h)) {
@@ -302,7 +340,7 @@ JShortcutRead(		// Read a shortcut
 	}
 
 	//Read the field values
-	h = shellLink->GetDescription(desc,descSize);
+	h = shellLink->GetDescription(description,descriptionSize);
 	if (FAILED(h)) {
 		errStr = "Failed to read description";
 		goto err;
@@ -320,7 +358,7 @@ JShortcutRead(		// Read a shortcut
 		goto err;
 	}
 
-	h = shellLink->GetIconLocation(iconLoc,iconLocSize,&id);
+	h = shellLink->GetIconLocation(iconLoc,iconLocSize,iconIndex);
 	if (FAILED(h)) {
 		errStr = "Failed to read icon";
 		goto err;
@@ -342,18 +380,19 @@ err:
 	return h;
 }
 
-// Create a shell link (shortcut) from Java.
+// Save a shell link (shortcut) from Java.
 JNIEXPORT jboolean JNICALL
-Java_net_jimmc_jshortcut_JShellLink_nCreate(
+Java_net_jimmc_jshortcut_JShellLink_nSave(
 	JNIEnv *env,
 	jobject jobj)	//this
 {
 	jstring jFolder, jName, jDesc, jPath, jWorkingDir, jIconLoc;
+	jint iconIndex;
 	const char *folder, *name, *desc, *path, *workingDir, *iconLoc;
 
 	//If we don't clear JShellLinkClass between calls, we get an
 	//EXCEPTION_ACCESS_VIOLATION when we call GetFieldID on the
-	//second call to nCreate.
+	//second call to nSave.
 	JShellLinkClass = NULL;
 
 	jFolder = JShortcutGetJavaString(env,jobj,"folder");
@@ -362,6 +401,7 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	jPath = JShortcutGetJavaString(env,jobj,"path");
 	jWorkingDir = JShortcutGetJavaString(env,jobj,"workingDirectory");
 	jIconLoc = JShortcutGetJavaString(env,jobj,"iconLocation");
+	iconIndex = JShortcutGetJavaInt(env,jobj,"iconIndex");
 
 	if (jFolder==NULL || jName==NULL)
 		return false;		//error, incompletely specified
@@ -373,7 +413,8 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	workingDir = jWorkingDir?env->GetStringUTFChars(jWorkingDir,NULL):NULL;
 	iconLoc = jIconLoc?env->GetStringUTFChars(jIconLoc,NULL):NULL;
 
-	HRESULT h = JShortcutCreate(folder,name,desc,path,workingDir,iconLoc);
+	HRESULT h = JShortcutSave(folder,name,desc,path,workingDir,
+			iconLoc,iconIndex);
 
 	if (folder)
 		env->ReleaseStringUTFChars(jFolder,folder);
@@ -391,20 +432,21 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	return SUCCEEDED(h);
 }
 
-// Read a shell link (shortcut) from Java.
+// Load a shell link (shortcut) from Java.
 JNIEXPORT jboolean JNICALL
-Java_net_jimmc_jshortcut_JShellLink_nRead(
+Java_net_jimmc_jshortcut_JShellLink_nLoad(
 	JNIEnv *env,
 	jobject jobj)	//this
 {
-	jstring jFolder, jName, jDesc, jPath, jWorkingDir;
+	jstring jFolder, jName, jDesc, jPath, jWorkingDir, jIconLoc;
 	const char *folder, *name;
 	char desc[MAX_PATH+1];
 	char path[MAX_PATH+1];
 	char workingDir[MAX_PATH+1];
 	char iconLoc[MAX_PATH+1];
+	int iconIndex;
 
-	//See comment in Java_net_jimmc_jshortcut_JShellLink_nCreate
+	//See comment in Java_net_jimmc_jshortcut_JShellLink_nSave
 	JShellLinkClass = NULL;
 
 	jFolder = JShortcutGetJavaString(env,jobj,"folder");
@@ -416,9 +458,10 @@ Java_net_jimmc_jshortcut_JShellLink_nRead(
 	folder = jFolder?env->GetStringUTFChars(jFolder,NULL):NULL;
 	name = jName?env->GetStringUTFChars(jName,NULL):NULL;
 
-	HRESULT h = JShortcutRead(folder,name,
+	HRESULT h = JShortcutLoad(folder,name,
 			desc,sizeof(desc),path,sizeof(path),
-			workingDir,sizeof(workingDir),iconLoc,sizeof(iconLoc));
+			workingDir,sizeof(workingDir),
+			iconLoc,sizeof(iconLoc),&iconIndex);
 
 	//TBD - if the shortcut does not exist, what should we do?
 
@@ -436,6 +479,7 @@ Java_net_jimmc_jshortcut_JShellLink_nRead(
 	JShortcutSetJavaString(env,jobj,"path",jPath);
 	JShortcutSetJavaString(env,jobj,"workingDirectory",jWorkingDir);
 	JShortcutSetJavaString(env,jobj,"iconLocation",jIconLoc);
+	JShortcutSetJavaInt(env,jobj,"iconIndex",iconIndex);
 
 	return SUCCEEDED(h);
 }

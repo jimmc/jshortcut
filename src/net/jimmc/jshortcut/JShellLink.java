@@ -45,11 +45,14 @@ public class JShellLink {
     // The location of the icon for the shortcut.
     String iconLocation;	//accessed from native code by name
 
+    // The index of the icon within the specified location.
+    int iconIndex;		//accessed from native code by name
+
     // Load our native library from PATH or CLASSPATH when this class is loaded.
     static {
 	// The CLASSPATH searching code below was written by Jim McBeath
 	// and contributed to the jRegistryKey project,
-	// after which it was also used here.
+	// after which it was modified and used here.
 	try {
 	    String appDir = System.getProperty("JSHORTCUT_HOME");
 	    	// allow application to specify our JNI location
@@ -196,10 +199,20 @@ public class JShellLink {
         return iconLocation;
     }
 
+    /** Set the icon index for this shortcut. */
+    public void setIconIndex(int iconIndex) {
+        this.iconIndex = iconIndex;
+    }
+
+    /** Get the icon index for this shortcut. */
+    public int getIconIndex() {
+        return iconIndex;
+    }
+
     /** Load a shortcut from disk.
      */
     public void load() {
-        if (!nRead()) {
+        if (!nLoad()) {
 	    throw new RuntimeException("Failed to load ShellLink");
 	    	//TBD - better error info
 	}
@@ -207,7 +220,7 @@ public class JShellLink {
 
     /** Write out this shortcut to disk. */
     public void save() {
-        if (!nCreate()) {
+        if (!nSave()) {
 	    throw new RuntimeException("Failed to save ShellLink");
 	    	//TBD - better error info
 	}
@@ -219,15 +232,16 @@ public class JShellLink {
      * The native code reads the following variables from this object:
      * folder, name.
      * The native code fills in the following variables in this object:
-     * description, path, workingDirectory, iconLocation.
+     * description, path, workingDirectory, iconLocation, iconIndex.
      */
-    private native boolean nRead();
+    private native boolean nLoad();
 
-    /** Create a shortcut.
+    /** Save a shortcut.
      * The native code reads the following variables from this object:
-     * folder, name, description, path, workingDirectory, iconLocation.
+     * folder, name, description, path, workingDirectory,
+     * iconLocation, iconIndex.
      */
-    private native boolean nCreate();
+    private native boolean nSave();
 
     /** Get the location of a special directory.
      */

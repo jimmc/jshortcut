@@ -10,6 +10,7 @@ HEAPSIZE  8192
 EXPORTS
 
 	Java_net_jimmc_jshortcut_JShellLink_nGetDirectory  @10
-	Java_net_jimmc_jshortcut_JShellLink_nCreate        @11
+	Java_net_jimmc_jshortcut_JShellLink_nLoad          @11
+	Java_net_jimmc_jshortcut_JShellLink_nSave          @12
 
 ;
