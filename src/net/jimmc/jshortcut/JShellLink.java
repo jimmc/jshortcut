@@ -112,6 +112,9 @@ public class JShellLink {
     /** Get the requested directory.
      * @param dirtype One of the following special strings:
      * <ul>
+     * <li>common_desktopdirectory -
+     *     the All Users desktop folder (not on earlier Windows)
+     * <li>common_programs - the All Users programs (not on earlier Windows)
      * <li>desktop - the Desktop
      * <li>personal - the My Documents folder
      * <li>programs - the Start Menu/Programs folder

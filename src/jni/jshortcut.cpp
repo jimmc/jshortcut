@@ -653,18 +653,36 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
 	//using SHGetSpecialFolderLocation.
 	if (strcmp(which,"desktop")==0) {
 		JShortcutGetDirectory(CSIDL_DESKTOP,buf);
-	} else if (strcmp(which,"personal")==0) {	// My Documents
+	}
+
+	else if (strcmp(which,"personal")==0) {	// My Documents
 		JShortcutGetDirectory(CSIDL_PERSONAL,buf);
-	} else if (strcmp(which,"programs")==0) {	// StartMenu/Programs
+	}
+
+	else if (strcmp(which,"programs")==0) {	// StartMenu/Programs
 		JShortcutGetDirectory(CSIDL_PROGRAMS,buf);
+	}
+
 //The CSIDL_PROGRAM_FILES constant was not introduced until
 //just after Windows 98, so it doesn't work for many Windows systems.
 //See below for code to look in the Registry instead.
-//	} else if (strcmp(which,"program_files")==0) {
+//	else if (strcmp(which,"program_files")==0) {
 //		JShortcutGetDirectory(CSIDL_PROGRAM_FILES,buf);
+//	}
+
 //CSIDL_STARTMENU returns garbage on NT; use CSIDL_PROGRAMS instead.
-//	} else if (strcmp(which,"start_menu")==0) {
+//	else if (strcmp(which,"start_menu")==0) {
 //		JShortcutGetDirectory(CSIDL_STARTMENU,buf);
+//	}
+
+//The common_programs and common_desktopdirectory lcoations only work
+//on older versions of Windows if they have the appropriate DLLs.
+//Otherwise, they return empty strings.
+	else if (strcmp(which,"common_programs")==0) {
+		JShortcutGetDirectory(CSIDL_COMMON_PROGRAMS,buf);
+	}
+	else if (strcmp(which,"common_desktopdirectory")==0) {
+		JShortcutGetDirectory(CSIDL_COMMON_DESKTOPDIRECTORY,buf);
 	}
 
 	//Look for specials we can get from the Registry.
