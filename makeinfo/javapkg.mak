@@ -14,17 +14,21 @@ include $(MAKEINFODIR)/javadefs.mak
 ifdef JUNITTEST
 DESTDIR = $(TOPDIR)/testobj
 SOURCEPATH = $(TOPDIR)/test:$(TOPDIR)/src
-CLASSPATH = $(DESTDIR):$(TOPDIR)/jraceman.jar:$(MCKOIJAR):$(JREGJAR):$(JUNITJAR)
+CLASSPATH = $(DESTDIR):$(TOPDIR)/jraceman.jar:$(JUNITJAR)
 else
 DESTDIR = $(TOPDIR)/obj
 SOURCEPATH = $(TOPDIR)/src
-CLASSPATH = $(DESTDIR):$(MCKOIJAR):$(JREGJAR):$(JUNITJAR)
+CLASSPATH = $(DESTDIR):$(JUNITJAR)
 endif
 
 SRCS	= *.java
 
 #default:	classes propfile jarfile
+ifdef NOJAR
+default:	classes
+else
 default:	classes jarfile
+endif
 
 classes:;	@echo $(JAVAC) $(JAVAC_DEBUG_OPTS) -d $(DESTDIR) \
 			-classpath $(CLASSPATH) \
@@ -35,7 +39,9 @@ classes:;	@echo $(JAVAC) $(JAVAC_DEBUG_OPTS) -d $(DESTDIR) \
 
 propfile:;	(cd $(TOPDIR); $(MAKE) propfile)
 
+ifndef NOJAR
 jarfile:;	(cd $(TOPDIR); $(MAKE) jaronly)
+endif
 
 runtest:;	$(JAVA) -classpath $(CLASSPATH) \
 			junit.textui.TestRunner $(JUNITTEST)
