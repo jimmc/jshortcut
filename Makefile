@@ -135,11 +135,17 @@ relbin:;	mkdir $(RELDIR)
 		cp -p $(RELBINFILES) $(RELDIR)
 		#tar cf - $(RELDOCFILES) | (cd $(RELDIR) && tar xf -)
 
+#Add the source files to the kit
+relsrc:;	tar cf - $(RELSRCS) | (cd $(RELDIR) && tar xf -)
+
+#Add the API doc to the kit
+relapidoc:;	tar cf - $(RELAPIDOC) | (cd $(RELDIR) && tar xf -)
+
 #Make the zip file of sources in the release directory
-relsrc:;	zip -r $(RELDIR)/src.zip $(RELSRCS)
+relsrc_zip:;	zip -r $(RELDIR)/src.zip $(RELSRCS)
 
 #Make the zip file of api doc files in the release directory
-relapidoc:;	zip -r $(RELDIR)/apidoc.zip $(RELAPIDOC)
+relapidoc_zip:;	zip -r $(RELDIR)/apidoc.zip $(RELAPIDOC)
 
 #After making the release directory, make a self-extracting jar file for it
 reljar:;	zip -r $(RELDIR).jar $(RELDIR)

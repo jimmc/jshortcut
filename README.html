@@ -6,7 +6,7 @@
 <center>
 <h1>README</h1>
 <h3>JShortcut<br>
-    v0.0.0  November 17, 2002</h3>
+    v0.1  November 21, 2002</h3>
 </center>
 
 <p>
@@ -17,8 +17,8 @@
  <li><a href="#features">Features</a>
  <li><a href="#documentation">Documentation</a>
  <li><a href="#installjshortcut">Installing JShortcut</a>
- <li><a href="#source">Unpacking the JShortcut Source</a>
  <li><a href="#using">Using JShortcut</a>
+ <li><a href="#building">Building JShortcut</a>
  <li><a href="#feedback">Bug Reports and Feedback</a>
  <li><a href="#author">Author</a>
 </ul>
@@ -27,7 +27,7 @@
 <a name="introduction"><h2>Introduction</h2></a>
 <p>
 JShortcut is a Java package and JNI library to allow Java programs to
-create and edit shortcuts (ShellLinks) under Windows.
+create shortcuts and menu items (ShellLinks) under Windows.
 
 <p>
 <a name="homepage"><h2>Home Page</h2></a>
@@ -41,7 +41,11 @@ to download the latest version of JShortcut.
 <a name="features"><h2>Features</h2></a>
 <ul>
   <li>Licensed under GPL, freely redistributable with source.
-  <li>Can be made to work when part of a self-extracting JAR file.
+  <li>Provides the location of special folders such as the desktop
+      and the Program Files directory.
+  <li>Allows the creation of shortcuts on the desktop
+      and menu items in the Start Menu.
+  <li>Can be made to work from a self-extracting JAR file.
 </ul>
 
 <p>
@@ -49,8 +53,7 @@ to download the latest version of JShortcut.
 <p>
 The javadoc-generated
 <a href="doc/api/index.html">API Reference</a>
-provides detailed documentation on the packages and classes used in
-JShortcut (available after you have <a href="#source">unpacked the source</a>).
+provides detailed documentation on the packages and classes used in JShortcut.
 
 <p>
 <a name="installjshortcut"><h2>Installing JShortcut</h2></a>
@@ -62,47 +65,86 @@ To install JShortcut from the installation JAR file (.jar extension),
 double-click on the JAR file, or run the command
 <blockquote>
 <code>
-java -jar jshortcut-<i>N_N_N</i>jar
+java -jar jshortcut-<i>N_N</i>.jar
 </code>
 </blockquote>
 This will open a dialog allowing you to specify a destination directory,
-and it will create a directory called jshortcut-<i>N_N_N</i>
+and it will create a directory called jshortcut-<i>N_N</i>
 in the specified directory,
-where <i>N_N_N</i> is replaced by the JShortcut version number.
-
-<p>
-<a name="source"><h2>Unpacking the JShortcut Source</h2></a>
-<p>
-If you want to build JShortcut yourself, or just look at the source code,
-you will have to unpack the source files from the <code>src.zip</code>
-archive file with the commands
-<blockquote>
-<code>cd jshortcut-<i>N_N_N</i><br>
-      unzip src.zip</code>
-</blockquote>
-This will create a <code>src</code> directory with all of the Java, C++
-other source files,
-as well as adding a few other files (such as a Makefile) to your jshortcut
-directory.
-
-<p>
-If you want to look at the Javadoc-generated API documentation
-for the Java classes, you must first unpack those html files from
-the <code>apidoc.zip</code> archive file with the commands
-<blockquote>
-<code>cd jshortcut-<i>N_N_N</i><br>
-      unzip apidoc.zip</code>
-</blockquote>
-This will create the directory doc/api with all of the API documentation in it.
-Alternatively, you can unpack <code>src.zip</code> and then run the command
-<blockquote>
-<code>make doc</code>
-</blockquote>
-to run javadoc and create the API documents from the source files.
+where <i>N_N</i> is replaced by the JShortcut version number.
 
 <p>
 <a name="using"><h2>Using JShortcut</h2></a>
-<p>TBD
+
+<p>
+To use JShortcut, you only need two files from the JShortcut distribution:
+jshortcut.jar and jshortcut.dll
+(but remember that the GPL requires you to make the source available
+when you redistribute JShortcut with your program).
+You don't need to build anything in the JShortcut kit in order to use it.
+
+<p>
+Copy the files jshortcut.jar and jshortcut.dll into one of the
+directories in your CLASSPATH.
+If your program runs from a jar file, you can put both of those files
+into the same directory as your main jar file, and add the following line
+to the manifest in your jar file:
+<blockquote>
+<code>Class-Path: jshortcut.jar</code>
+</blockquote>
+
+<p>
+Use code such as the following to create a shortcut on the desktop:
+<blockquote>
+<pre>
+<code>
+import net.jimmc.shortcut.JShellLink;
+...
+    String jarFileName = JShellLink("program_files")+"\\myprogram\\myprogram.jar";
+        //This might be a good place to put your program
+    JShellLink link = new JShellLink();
+    link.setFolder(JShellLink.getDirectory("desktop"));
+    link.setName("My Program");
+    link.setPath(jarFileName);
+    link.save();
+</code>
+</pre>
+</blockquote>
+
+<p>
+You may want to use the JShortcut capabilities from a self-extracting
+jar file when installing your program.
+This allows you to get such useful values as the location of the
+Program Files directory, which you might want as a default when asking
+the user where he wants to install your program.
+<p>
+To use JShortcut during the self-extraction, you will need to take
+the following steps:
+<ul>
+<li>When building your self-extracting jar file, be sure to include
+    the net/jimmc/jshortcut class files in your jar file where they
+    will be available during extraction.
+<li>At the beginning of the installation process,
+    extract the jshortcut.dll file to a temporary location.
+    Use System.getProperty("java.io.tmpdir") for the location of the
+    temporary directory.
+<li>Using System.setProperty, set the system property JSHORTCUT_HOME
+    to the temporary directory.
+    You must take these two steps before referencing any of the
+    JShortcut classes for the first time; otherwise it will fail to
+    find the jshortcut.dll native library.
+<li>At this point you can use any of the JShortcut classes and methods.
+<li>After the extraction is done, delete the temporary copy of jshortcut.dll.
+</ul>
+
+<p>
+<a name="building"><h2>Building JShortcut</h2></a>
+
+<p>
+If you make changes to the source files in JShortcut, you will need to
+rebuild it.
+For instructions on how to build JShortcut, see the file
+<a href="README.build">README.build</a>.
 
 <p>
 <a name="feedback"><h2>Bug Reports and Feedback</h2></a>

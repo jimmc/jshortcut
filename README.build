@@ -1,4 +1,4 @@
-JShortcut					November 18, 2002
+JShortcut					November 21, 2002
 
 Building a new version
 ----------------------
@@ -26,10 +26,13 @@ Building a new version
 	make rel		Builds a release kit named jshortcut-<version>
 	make reljar		Builds a self-extracting jar file
 					from the release kit
+
+    If you are maintaing archives and CVS:
+
 	make arch		Copy the zip, tgz, & README files to archive dir
 	make cvstag		Run "cvs tag" for this version
 
-    To clean up, execute this commands:
+    To clean up, execute this command:
 
         make allclean		Deletes all generated files
 

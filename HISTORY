@@ -1,1 +1,16 @@
-JShortcut  v0.0.0  November 15, 2002  Project started
+JShortcut  v0.1  November 21, 2002  First release
+
+  Enhancements
+
+  * JShellLink.getDirectory allows getting paths to special folders for
+    desktop, personal, programs, program_files.
+
+  * JShellLink allows setting folder, name, description, path,
+    workingDirectory.
+
+  * New shortcuts can be created only.
+    No capability to read existing shortcuts.
+
+===============================================================================
+
+JShortcut  v0.0  November 15, 2002  Project started
