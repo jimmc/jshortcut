@@ -1,9 +1,12 @@
-JShortcut  v0.2b  July 4, 2003  Use native string encoding
+JShortcut  v0.3  September 12, 2003  Use native string encoding
 
   Enhancements
 
   * The new setArguments and getArguments methods to JShellLink allow you
     to manipluate the arguments field of the shortcut.
+
+  * The native code now uses a context structure instead of static variables,
+    which should make it possible to use JShortcut in a multi-threaded program.
 
   Bug Fixes:
 

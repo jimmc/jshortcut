@@ -8,3 +8,5 @@
 - Add JShellLink.{gs}etArguments. [030703]
 - Use native encoding rather than UTF-8 for native strings. [030704]
 - v0.2b [030704]
+- Use context structure rather than static variables. [030911]
+- v0.3 [030912]

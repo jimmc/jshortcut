@@ -6,7 +6,7 @@
 <center>
 <h1>README</h1>
 <h3>JShortcut<br>
-    v0.2b  July 4, 2003</h3>
+    v0.3  September 12, 2003</h3>
 </center>
 
 <p>
@@ -101,8 +101,9 @@ Use code such as the following to create a shortcut on the desktop:
 <code>
 import net.jimmc.shortcut.JShellLink;
 ...
-    String jarFileName = JShellLink("program_files")+"\\myprogram\\myprogram.jar";
-        //This might be a good place to put your program
+    String jarFileName = JShellLink.getDirectory("program_files")+
+        "\\myprogram\\myprogram.jar";
+            //This might be a good place to put your program
     JShellLink link = new JShellLink();
     link.setFolder(JShellLink.getDirectory("desktop"));
     link.setName("My Program");
@@ -130,7 +131,7 @@ the following steps:
     Use System.getProperty("java.io.tmpdir") for the location of the
     temporary directory.
 <li>Using System.setProperty, set the system property JSHORTCUT_HOME
-    to the temporary directory.
+    to the temporary directory to which you extracted jshortcut.dll.
     You must take these two steps before referencing any of the
     JShortcut classes for the first time; otherwise it will fail to
     find the jshortcut.dll native library.
@@ -158,12 +159,6 @@ please send email to <a href="mailto:jimmc@nwlink.com">jimmc@nwlink.com</a>
 <p>
 JShortcut was written by Jim McBeath &lt;jimmc@nwlink.com&gt;,
 <a href="http://alumni.caltech.edu/~jimmc">http://alumni.caltech.edu/~jimmc</a>
-
-<p>
-Contributors:
-<ul>
-<li>Oleg Noga
-</ul>
 
 </body>
 </html>
