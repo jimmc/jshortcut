@@ -15,7 +15,8 @@ OBJS          = jshortcut.obj
 
 INCLUDES      = /I $(WINDOWS_JDK)\include /I $(WINDOWS_JDK)\include\win32
 
-LIBS          = shell32.lib ole32.lib uuid.lib libcmt.lib kernel32.lib
+LIBS          = advapi32.lib shell32.lib \
+		ole32.lib uuid.lib libcmt.lib kernel32.lib
 
 default:	$(DEFAULT_TARGET)
 

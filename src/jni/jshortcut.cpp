@@ -50,6 +50,7 @@ JShortcutGetDirectory(
 	LPITEMIDLIST idList;
 	LPMALLOC shellMalloc;
 
+	buf[0] = 0;	// the return value if no data is a blank string
 	//Get the requested location
 	SHGetMalloc(&shellMalloc);
 	SHGetSpecialFolderLocation(NULL, special, &idList);
@@ -57,6 +58,41 @@ JShortcutGetDirectory(
 	shellMalloc->Free(idList);
 	shellMalloc->Release();
 	return h;
+}
+
+// Get the value of a Registry entry.
+static
+int			// 0 if OK, nonzero if error
+JShortcutGetRegistryValue(
+	HKEY root,	// one of the HKEY_* constants
+	char* subkey,	// the path within the named root registry
+	char* item,	// the final item name
+	char* buf,	// Fills this in with the desktop directory
+	int bufSize)	// size of buf
+{
+	LONG status;
+	HKEY hkey;
+	DWORD type;
+	DWORD size;
+
+	status = RegOpenKeyEx(root, subkey, 0, KEY_READ, &hkey);
+	if (status!=ERROR_SUCCESS) {	//who thought up this name?
+		//failed
+		buf[0] = 0;
+		return -1;		//no change to buf
+	}
+
+	size = bufSize;
+	status = RegQueryValueEx(hkey, item, NULL, &type,
+			(unsigned char *)buf, &size);
+	if (type!=REG_SZ) {
+		// We only know how to handle string values
+		buf[0] = 0;
+		return -1;
+	}
+
+	RegCloseKey(hkey);
+	return 0;
 }
 
 // Create a new shell link
@@ -205,18 +241,29 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
     	char buf[MAX_PATH+1];
 	const char* which = env->GetStringUTFChars(jWhich,NULL);
 
+	//Start by looking for specials which we can get
+	//using SHGetSpecialFolderLocation.
 	if (strcmp(which,"desktop")==0) {
 		JShortcutGetDirectory(CSIDL_DESKTOP,buf);
 	} else if (strcmp(which,"personal")==0) {	// My Documents
 		JShortcutGetDirectory(CSIDL_PERSONAL,buf);
-//Unfortunately, the CSIDL_PROGRAM_FILES constant was not introduced until
+	} else if (strcmp(which,"programs")==0) {	// StartMenu/Programs
+		JShortcutGetDirectory(CSIDL_PROGRAMS,buf);
+//The CSIDL_PROGRAM_FILES constant was not introduced until
 //just after Windows 98, so it doesn't work for many Windows systems.
-//Use jRegistryKey and look at
-//HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\ProgramFilesDir
+//See below for code to look in the Registry instead.
 //	} else if (strcmp(which,"program_files")==0) {
 //		JShortcutGetDirectory(CSIDL_PROGRAM_FILES,buf);
-	} else if (strcmp(which,"start_menu")==0) {
-		JShortcutGetDirectory(CSIDL_STARTMENU,buf);
+//CSIDL_STARTMENU returns garbage on NT; use CSIDL_PROGRAMS instead.
+//	} else if (strcmp(which,"start_menu")==0) {
+//		JShortcutGetDirectory(CSIDL_STARTMENU,buf);
+	}
+
+	//Look for specials we can get from the Registry.
+	else if (strcmp(which,"program_files")==0) {
+		JShortcutGetRegistryValue(HKEY_LOCAL_MACHINE,
+			"SOFTWARE\\Microsoft\\Windows\\CurrentVersion",
+			"ProgramFilesDir",buf,sizeof(buf));
 	}
 
 	env->ReleaseStringUTFChars(jWhich,which);

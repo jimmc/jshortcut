@@ -104,8 +104,8 @@ public class JShellLink {
      * <ul>
      * <li>desktop - the Desktop
      * <li>personal - the My Documents folder
+     * <li>programs - the Start Menu/Programs folder
      * <li>program_files - the Program Files folder
-     * <li>start_menu - the Start Menu
      * </ul>
      * @return The location of the special folder.
      */
