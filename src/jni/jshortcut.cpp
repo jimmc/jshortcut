@@ -5,21 +5,19 @@
 #include <objidl.h>
 #include <jni.h>
 
-//In Win95 and NT, you can read the value of the "Desktop" and "Start Menu"
-//strings from the registry key in HKEY_CURRENT_USER:
-//Software\MicroSoft\Windows\CurrentVersion\Explorer\Shell Folders
-
 static char* stringType = "Ljava/lang/String;";
 static jclass JShellLinkClass;
 
 // Get a Java string value from a JShellLink object.
-static jstring
-getJavaString(
+static
+jstring
+JShortcutGetJavaString(
 	JNIEnv *env,
 	jobject jobj,		// a JShellLink object
 	char *fieldName)	// the name of the String field to get
 {
 	jfieldID fid;
+	jstring js;
 
 	if (!JShellLinkClass) {
 		char *className = "net/jimmc/jshortcut/JShellLink";
@@ -35,7 +33,8 @@ getJavaString(
 		fprintf(stderr,"Can't find field %s\n",fieldName);
 		return NULL;
 	}
-	return (jstring)env->GetObjectField(jobj,fid);
+	js = (jstring)env->GetObjectField(jobj,fid);
+	return js;
 }
 
 // Get the path for one of the special Windows directories such as
@@ -110,8 +109,8 @@ JShortcutCreate(		// Create a shortcut
 	HRESULT h;
 	IShellLink *shellLink = NULL;
 	IPersistFile *persistFile = NULL;
-	TCHAR buf[256];
-	WORD wName[256];
+	TCHAR buf[MAX_PATH+1];
+	WORD wName[MAX_PATH+1];
 	int id;
 
 	// Initialize the COM library
@@ -134,19 +133,26 @@ JShortcutCreate(		// Create a shortcut
 		goto err;
 	}
 
-	shellLink->SetPath(path);
-	shellLink->SetWorkingDirectory(workingDir);
-	shellLink->SetDescription(description);
+	if (path!=NULL)
+		shellLink->SetPath(path);
+	if (workingDir!=NULL)
+		shellLink->SetWorkingDirectory(workingDir);
+	if (description!=NULL)
+		shellLink->SetDescription(description);
 
 	//One example elsewhere adds this line:
 	//shellLink->SetShowCommand(SW_SHOW);
 
 	//Append the shortcut name to the folder
 	buf[0] = 0;
+	if (strlen(folder)+strlen(name)+6 > sizeof(buf)) {
+		errStr = "Folder+name is too long";
+		goto err;
+	}
 	strcat(buf,folder);
 	strcat(buf,"\\");
-	strcat(buf,name);	//TBD check for overflow
-	strcat(buf,".lnk");	//TBD check for overflow
+	strcat(buf,name);
+	strcat(buf,".lnk");
 	MultiByteToWideChar(CP_ACP,0,buf,-1,wName,MAX_PATH);
 
 	//Save the shortcut to disk
@@ -192,7 +198,8 @@ err:
 	if (shellLink!=NULL)
 		shellLink->Release();
 	CoUninitialize();
-	//TBD - throw exception
+	fprintf(stderr,"Error: %s\n",errStr);
+	//TBD - throw exception with errStr
 	return h;
 }
 
@@ -202,18 +209,28 @@ Java_net_jimmc_jshortcut_JShellLink_nCreate(
 	JNIEnv *env,
 	jobject jobj)	//this
 {
-	jstring jFolder = getJavaString(env,jobj,"folder");
-	jstring jName = getJavaString(env,jobj,"name");
-	jstring jDesc = getJavaString(env,jobj,"description");
-	jstring jPath = getJavaString(env,jobj,"path");
-	jstring jWorkingDir = getJavaString(env,jobj,"workingDirectory");
+	jstring jFolder, jName, jDesc, jPath, jWorkingDir;
+	const char *folder, *name, *desc, *path, *workingDir;
 
-	const char* folder = jFolder?env->GetStringUTFChars(jFolder,NULL):NULL;
-	const char* name = jName?env->GetStringUTFChars(jName,NULL):NULL;
-	const char* desc = jDesc?env->GetStringUTFChars(jDesc,NULL):NULL;
-	const char* path = jPath?env->GetStringUTFChars(jPath,NULL):NULL;
-	const char* workingDir =
-		jWorkingDir?env->GetStringUTFChars(jWorkingDir,NULL):NULL;
+	//If we don't clear JShellLinkClass between calls, we get an
+	//EXCEPTION_ACCESS_VIOLATION when we call GetFieldID on the
+	//second call to nCreate.
+	JShellLinkClass = NULL;
+
+	jFolder = JShortcutGetJavaString(env,jobj,"folder");
+	jName = JShortcutGetJavaString(env,jobj,"name");
+	jDesc = JShortcutGetJavaString(env,jobj,"description");
+	jPath = JShortcutGetJavaString(env,jobj,"path");
+	jWorkingDir = JShortcutGetJavaString(env,jobj,"workingDirectory");
+
+	if (jFolder==NULL || jName==NULL)
+		return false;		//error, incompletely specified
+
+	folder = jFolder?env->GetStringUTFChars(jFolder,NULL):NULL;
+	name = jName?env->GetStringUTFChars(jName,NULL):NULL;
+	desc = jDesc?env->GetStringUTFChars(jDesc,NULL):NULL;
+	path = jPath?env->GetStringUTFChars(jPath,NULL):NULL;
+	workingDir = jWorkingDir?env->GetStringUTFChars(jWorkingDir,NULL):NULL;
 
 	HRESULT h = JShortcutCreate(folder,name,desc,path,workingDir);
 
@@ -241,6 +258,9 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
     	char buf[MAX_PATH+1];
 	const char* which = env->GetStringUTFChars(jWhich,NULL);
 
+	//If not defined, return blank string.
+	buf[0] = 0;
+
 	//Start by looking for specials which we can get
 	//using SHGetSpecialFolderLocation.
 	if (strcmp(which,"desktop")==0) {
@@ -265,6 +285,10 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
 			"SOFTWARE\\Microsoft\\Windows\\CurrentVersion",
 			"ProgramFilesDir",buf,sizeof(buf));
 	}
+
+//In Win95 and NT, you can read the value of the "Desktop" and "Start Menu"
+//strings from the registry key in HKEY_CURRENT_USER:
+//Software\MicroSoft\Windows\CurrentVersion\Explorer\Shell Folders
 
 	env->ReleaseStringUTFChars(jWhich,which);
 	return env->NewStringUTF(buf);
