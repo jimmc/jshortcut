@@ -1,6 +1,7 @@
-November 21, 2002
+December 30, 2002
 
-The following copyright notice applies to all files in this distribution.
+The following copyright notice applies to all files in this distribution
+except as noted below after the line of dashes.
 
   Copyright (c) 2002 Jim McBeath  http://www.alumni.caltech.edu/~jimmc
 
@@ -18,3 +19,9 @@ The following copyright notice applies to all files in this distribution.
   Mass Ave, Cambridge, MA 02139, USA. 
 
 See the file LICENSE for the GNU GPL, version 2.
+
+------------------------------------------------------------------------------
+
+ZipSelfExtractor by Z. Steve Jin and John D. Mitchell (modified by Jimmc)
+is distributed without an explicit copyright.
+See http://www.javaworld.com/javaworld/javatips/jw-javatip120.html
