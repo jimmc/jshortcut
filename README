@@ -1,4 +1,4 @@
-jShortcut is a JNI library to allow Java programs to create shortcuts
+JShortcut is a JNI library to allow Java programs to create shortcuts
 and menu items on Windows.
 
 For more information, see README.html.
