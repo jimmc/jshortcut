@@ -11,28 +11,36 @@
 
 static char* stringType = "Ljava/lang/String;";
 static char* intType = "I";
-static jclass JShellLinkClass;
-static jclass StringClass;	//java.lang.String class
-static jmethodID StringClassGetBytes;
-static jmethodID StringClassBytesConstructor;
+
+//A collection of values which change each time one of our JNI functions is
+//called.  Trying to use one of these values from one JNI call to the next
+//results in an EXCEPTION_ACCESS_VIOLATION on the second call to GetFieldID.
+//We store these values in a structure which is automatically allocated on
+//the stack at the beginning of each JNI call, then we pass around a pointer
+//to that structure and fill in the fields as we need them.  When the JNI
+//call returns, the structure is automatically disposed.
+struct eContext {
+	JNIEnv *env;
+	jobject jobj;
+	jclass JShellLinkClass;
+	jclass StringClass;	//java.lang.String class
+	jmethodID StringClassGetBytes;
+	jmethodID StringClassBytesConstructor;
+};
 
 static
 void
-JShortcutClearClasses() {
-	//If we don't clear JShellLinkClass between calls, we get an
-	//EXCEPTION_ACCESS_VIOLATION when we call GetFieldID on the
-	//second call to nSave.
-	JShellLinkClass = NULL;
-	StringClass = NULL;
-	StringClassGetBytes = NULL;
-	StringClassBytesConstructor = NULL;
+JShortcutInitContext(struct eContext* ctx, JNIEnv *env, jobject jobj) {
+    	memset(ctx,0,sizeof(*ctx));
+	ctx->env = env;
+	ctx->jobj = jobj;
 }
 
 // Given a Java string, convert it to a native string
 static
 char*
 JShortcutJavaStringToNative(
-	JNIEnv *env,
+	struct eContext *ctx,
 	jstring jstr,
 	jobject *jfreeobjp)		//RETURN pointer to use for freeing
 {
@@ -41,7 +49,7 @@ JShortcutJavaStringToNative(
 // work if the native encoding is something other than UTF-8.
 	char *str;
 
-	str = jstr?(char*)env->GetStringUTFChars(jstr,NULL):NULL;
+	str = jstr?(char*)ctx->env->GetStringUTFChars(jstr,NULL):NULL;
 	*jfreeobjp = jstr;
 	return str;
 #else
@@ -53,26 +61,27 @@ JShortcutJavaStringToNative(
 
 	if (!jstr)
 		return NULL;
-	if (!StringClass) {
+	if (!ctx->StringClass) {
 		char *className = "java/lang/String";
-		StringClass = env->FindClass(className);
-		if (!StringClass) {
+		ctx->StringClass = ctx->env->FindClass(className);
+		if (!ctx->StringClass) {
 			fprintf(stderr,"Can't find class %s\n",className);
 			return NULL;
 		}
 	}
-	if (!StringClassGetBytes) {
-		StringClassGetBytes = env->GetMethodID(StringClass,
+	if (!ctx->StringClassGetBytes) {
+		ctx->StringClassGetBytes =
+			ctx->env->GetMethodID(ctx->StringClass,
 				"getBytes","()[B");
-		if (!StringClassGetBytes) {
+		if (!ctx->StringClassGetBytes) {
 			fprintf(stderr,"Can't find method String.getBytes()\n");
 			return NULL;
 		}
 	}
-	arr = (jbyteArray)(env->CallObjectMethod(jstr,StringClassGetBytes));
-	len = env->GetArrayLength(arr);
+	arr = (jbyteArray)(ctx->env->CallObjectMethod(jstr,ctx->StringClassGetBytes));
+	len = ctx->env->GetArrayLength(arr);
 	str = (char*)malloc(len+1);
-	(env->GetByteArrayRegion(arr,0,len,(signed char*)str));
+	(ctx->env->GetByteArrayRegion(arr,0,len,(signed char*)str));
 	str[len] = 0;	//null-terminate the string
 	*jfreeobjp = arr;
 	return str;
@@ -99,44 +108,44 @@ JShortcutReleaseNativeString(
 static
 jstring
 JShortcutNativeStringToJava(
-	JNIEnv *env,
+	struct eContext *ctx,
 	char *str)
 {
 #ifdef USE_UTF_8
 	jstring jstr;
 
-	jstr = env->NewStringUTF(str);
+	jstr = ctx->env->NewStringUTF(str);
 	return jstr;
 #else
 	jbyteArray arr;
 	jstring jstr;
 
 	if (!str) {
-		return env->NewStringUTF("");	//empty string
+		return ctx->env->NewStringUTF("");	//empty string
 	}
-	arr = env->NewByteArray(strlen(str));
-	env->SetByteArrayRegion(arr,0,strlen(str),(signed char*)str);
+	arr = ctx->env->NewByteArray(strlen(str));
+	ctx->env->SetByteArrayRegion(arr,0,strlen(str),(signed char*)str);
 
 	// now use String(byte[]) constructor
-	if (!StringClass) {
+	if (!ctx->StringClass) {
 		char *className = "java/lang/String";
-		StringClass = env->FindClass(className);
-		if (!StringClass) {
+		ctx->StringClass = ctx->env->FindClass(className);
+		if (!ctx->StringClass) {
 			fprintf(stderr,"Can't find class %s\n",className);
 			return NULL;
 		}
 	}
-	if (!StringClassBytesConstructor) {
-		StringClassBytesConstructor = env->GetMethodID(StringClass,
-				"<init>","([B)V");
-		if (!StringClassBytesConstructor) {
+	if (!ctx->StringClassBytesConstructor) {
+		ctx->StringClassBytesConstructor =
+		    ctx->env->GetMethodID(ctx->StringClass,"<init>","([B)V");
+		if (!ctx->StringClassBytesConstructor) {
 			fprintf(stderr,
 				"Can't find constructor String(byte[])\n");
 			return NULL;
 		}
 	}
-	jstr = (jstring)(env->NewObject(
-			StringClass,StringClassBytesConstructor,arr));
+	jstr = (jstring)(ctx->env->NewObject(
+			ctx->StringClass,ctx->StringClassBytesConstructor,arr));
 	return jstr;
 #endif
 }
@@ -145,58 +154,56 @@ JShortcutNativeStringToJava(
 static
 char*
 JShortcutGetNativeString(
-	JNIEnv *env,
-	jobject jobj,		// a JShellLink object
+	struct eContext *ctx,
 	char *fieldName,	// the name of the String field to get
 	jobject *jfreeobjp)	// RETURN the associated jobject for freeing
 {
 	jfieldID fid;
 	jstring fieldValue;
 
-	if (!JShellLinkClass) {
+	if (!ctx->JShellLinkClass) {
 		char *className = "net/jimmc/jshortcut/JShellLink";
-		JShellLinkClass = env->FindClass(className);
-		if (!JShellLinkClass) {
+		ctx->JShellLinkClass = ctx->env->FindClass(className);
+		if (!ctx->JShellLinkClass) {
 			fprintf(stderr,"Can't find class %s\n",className);
 			return NULL;
 		}
 	}
-	fid = env->GetFieldID(JShellLinkClass,fieldName,stringType);
+	fid = ctx->env->GetFieldID(ctx->JShellLinkClass,fieldName,stringType);
 	if (fid==0) {
 		//TBD error, throw exception?
 		fprintf(stderr,"Can't find field %s\n",fieldName);
 		return NULL;
 	}
-	fieldValue = (jstring)env->GetObjectField(jobj,fid);
-	return JShortcutJavaStringToNative(env,fieldValue,jfreeobjp);
+	fieldValue = (jstring)ctx->env->GetObjectField(ctx->jobj,fid);
+	return JShortcutJavaStringToNative(ctx,fieldValue,jfreeobjp);
 }
 
 // Set a Java string value into a JShellLink object.
 static
 int			// 0 if error, 1 if OK
 JShortcutSetJavaString(
-	JNIEnv *env,
-	jobject jobj,		// a JShellLink object
+	struct eContext *ctx,
 	char *fieldName,	// the name of the String field to set
 	jstring fieldValue)	// the value to set into that field
 {
 	jfieldID fid;
 
-	if (!JShellLinkClass) {
+	if (!ctx->JShellLinkClass) {
 		char *className = "net/jimmc/jshortcut/JShellLink";
-		JShellLinkClass = env->FindClass(className);
-		if (!JShellLinkClass) {
+		ctx->JShellLinkClass = ctx->env->FindClass(className);
+		if (!ctx->JShellLinkClass) {
 			fprintf(stderr,"Can't find class %s\n",className);
 			return 0;
 		}
 	}
-	fid = env->GetFieldID(JShellLinkClass,fieldName,stringType);
+	fid = ctx->env->GetFieldID(ctx->JShellLinkClass,fieldName,stringType);
 	if (fid==0) {
 		//TBD error, throw exception?
 		fprintf(stderr,"Can't find field %s\n",fieldName);
 		return 0;
 	}
-	env->SetObjectField(jobj,fid,fieldValue);
+	ctx->env->SetObjectField(ctx->jobj,fid,fieldValue);
 	return 1;
 }
 
@@ -204,28 +211,27 @@ JShortcutSetJavaString(
 static
 jint
 JShortcutGetJavaInt(
-	JNIEnv *env,
-	jobject jobj,		// a JShellLink object
+	struct eContext *ctx,
 	char *fieldName)	// the name of the String field to get
 {
 	jfieldID fid;
 	jint fieldValue;
 
-	if (!JShellLinkClass) {
+	if (!ctx->JShellLinkClass) {
 		char *className = "net/jimmc/jshortcut/JShellLink";
-		JShellLinkClass = env->FindClass(className);
-		if (!JShellLinkClass) {
+		ctx->JShellLinkClass = ctx->env->FindClass(className);
+		if (!ctx->JShellLinkClass) {
 			fprintf(stderr,"Can't find class %s\n",className);
 			return NULL;
 		}
 	}
-	fid = env->GetFieldID(JShellLinkClass,fieldName,intType);
+	fid = ctx->env->GetFieldID(ctx->JShellLinkClass,fieldName,intType);
 	if (fid==0) {
 		//TBD error, throw exception?
 		fprintf(stderr,"Can't find field %s\n",fieldName);
 		return NULL;
 	}
-	fieldValue = env->GetIntField(jobj,fid);
+	fieldValue = ctx->env->GetIntField(ctx->jobj,fid);
 	return fieldValue;
 }
 
@@ -233,28 +239,27 @@ JShortcutGetJavaInt(
 static
 int			// 0 if error, 1 if OK
 JShortcutSetJavaInt(
-	JNIEnv *env,
-	jobject jobj,		// a JShellLink object
+	struct eContext *ctx,
 	char *fieldName,	// the name of the String field to set
 	jint fieldValue)	// the value to set into that field
 {
 	jfieldID fid;
 
-	if (!JShellLinkClass) {
+	if (!ctx->JShellLinkClass) {
 		char *className = "net/jimmc/jshortcut/JShellLink";
-		JShellLinkClass = env->FindClass(className);
-		if (!JShellLinkClass) {
+		ctx->JShellLinkClass = ctx->env->FindClass(className);
+		if (!ctx->JShellLinkClass) {
 			fprintf(stderr,"Can't find class %s\n",className);
 			return 0;
 		}
 	}
-	fid = env->GetFieldID(JShellLinkClass,fieldName,intType);
+	fid = ctx->env->GetFieldID(ctx->JShellLinkClass,fieldName,intType);
 	if (fid==0) {
 		//TBD error, throw exception?
 		fprintf(stderr,"Can't find field %s\n",fieldName);
 		return 0;
 	}
-	env->SetIntField(jobj,fid,fieldValue);
+	ctx->env->SetIntField(ctx->jobj,fid,fieldValue);
 	return 1;
 }
 
@@ -279,6 +284,15 @@ JShortcutGetDirectory(
 	shellMalloc->Release();
 	return h;
 }
+// We could use SHGetFolderPath, but on Win95 that requires that SHFolder.dll
+// is available.  This is a redistributable library, but that means we would
+// have to include it in our distribution to make sure everyone has it.
+// SHFolder.sll was distributed with Internet Explorer 4.0 and later,
+// and was included in Shell32.dll version 5.0 in Windows ME and 2K,
+// at which point SHFolder.dll became just a redirect to Shell32.dll.
+// The web page says minimum OS is Win95/98/NT with IE5.0, Win98SE,
+// or WinNT SP4.
+// See <http://msdn.microsoft.com/library/default.asp?url=/library/en-us/shellcc/platform/shell/reference/functions/shgetfolderpath.asp>.
 
 // Get the value of a Registry entry.
 static
@@ -533,18 +547,19 @@ Java_net_jimmc_jshortcut_JShellLink_nSave(
 	jobject jFolder, jName, jDesc, jPath, jArgs, jWorkingDir, jIconLoc;
 	jint iconIndex;
 	const char *folder, *name, *desc, *path, *args, *workingDir, *iconLoc;
+	struct eContext ctx;
 
-	JShortcutClearClasses();
+	JShortcutInitContext(&ctx,env,jobj);
 
-	folder = JShortcutGetNativeString(env,jobj,"folder",&jFolder);
-	name = JShortcutGetNativeString(env,jobj,"name",&jName);
-	desc = JShortcutGetNativeString(env,jobj,"description",&jDesc);
-	path = JShortcutGetNativeString(env,jobj,"path",&jPath);
-	args = JShortcutGetNativeString(env,jobj,"arguments",&jArgs);
-	workingDir = JShortcutGetNativeString(env,jobj,"workingDirectory",
+	folder = JShortcutGetNativeString(&ctx,"folder",&jFolder);
+	name = JShortcutGetNativeString(&ctx,"name",&jName);
+	desc = JShortcutGetNativeString(&ctx,"description",&jDesc);
+	path = JShortcutGetNativeString(&ctx,"path",&jPath);
+	args = JShortcutGetNativeString(&ctx,"arguments",&jArgs);
+	workingDir = JShortcutGetNativeString(&ctx,"workingDirectory",
 							&jWorkingDir);
-	iconLoc = JShortcutGetNativeString(env,jobj,"iconLocation",&jIconLoc);
-	iconIndex = JShortcutGetJavaInt(env,jobj,"iconIndex");
+	iconLoc = JShortcutGetNativeString(&ctx,"iconLocation",&jIconLoc);
+	iconIndex = JShortcutGetJavaInt(&ctx,"iconIndex");
 
 	if (folder==NULL || name==NULL)
 		return false;		//error, incompletely specified
@@ -579,11 +594,12 @@ Java_net_jimmc_jshortcut_JShellLink_nLoad(
 	char workingDir[MAX_PATH+1];
 	char iconLoc[MAX_PATH+1];
 	int iconIndex;
+	struct eContext ctx;
 
-	JShortcutClearClasses();
+	JShortcutInitContext(&ctx,env,jobj);
 
-	folder = JShortcutGetNativeString(env,jobj,"folder",&jFolder);
-	name = JShortcutGetNativeString(env,jobj,"name",&jName);
+	folder = JShortcutGetNativeString(&ctx,"folder",&jFolder);
+	name = JShortcutGetNativeString(&ctx,"name",&jName);
 
 	if (folder==NULL || name==NULL)
 		return false;		//error, incompletely specified
@@ -600,18 +616,18 @@ Java_net_jimmc_jshortcut_JShellLink_nLoad(
 	JShortcutReleaseNativeString(env,jFolder,folder);
 	JShortcutReleaseNativeString(env,jName,name);
 
-	jDesc = JShortcutNativeStringToJava(env,desc);
-	jPath = JShortcutNativeStringToJava(env,path);
-	jArgs = JShortcutNativeStringToJava(env,args);
-	jWorkingDir = JShortcutNativeStringToJava(env,workingDir);
-	jIconLoc = JShortcutNativeStringToJava(env,iconLoc);
+	jDesc = JShortcutNativeStringToJava(&ctx,desc);
+	jPath = JShortcutNativeStringToJava(&ctx,path);
+	jArgs = JShortcutNativeStringToJava(&ctx,args);
+	jWorkingDir = JShortcutNativeStringToJava(&ctx,workingDir);
+	jIconLoc = JShortcutNativeStringToJava(&ctx,iconLoc);
 
-	JShortcutSetJavaString(env,jobj,"description",jDesc);
-	JShortcutSetJavaString(env,jobj,"path",jPath);
-	JShortcutSetJavaString(env,jobj,"arguments",jArgs);
-	JShortcutSetJavaString(env,jobj,"workingDirectory",jWorkingDir);
-	JShortcutSetJavaString(env,jobj,"iconLocation",jIconLoc);
-	JShortcutSetJavaInt(env,jobj,"iconIndex",iconIndex);
+	JShortcutSetJavaString(&ctx,"description",jDesc);
+	JShortcutSetJavaString(&ctx,"path",jPath);
+	JShortcutSetJavaString(&ctx,"arguments",jArgs);
+	JShortcutSetJavaString(&ctx,"workingDirectory",jWorkingDir);
+	JShortcutSetJavaString(&ctx,"iconLocation",jIconLoc);
+	JShortcutSetJavaInt(&ctx,"iconIndex",iconIndex);
 
 	return SUCCEEDED(h);
 }
@@ -626,8 +642,9 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
     	char buf[MAX_PATH+1];
 	const char* which = env->GetStringUTFChars(jWhich,NULL);
 	jstring jstr;
+	struct eContext ctx;
 
-	JShortcutClearClasses();
+	JShortcutInitContext(&ctx,env,NULL);
 
 	//If not defined, return blank string.
 	buf[0] = 0;
@@ -662,6 +679,6 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
 //Software\MicroSoft\Windows\CurrentVersion\Explorer\Shell Folders
 
 	env->ReleaseStringUTFChars(jWhich,which);
-	jstr = JShortcutNativeStringToJava(env,buf);
+	jstr = JShortcutNativeStringToJava(&ctx,buf);
 	return jstr;
 }
