@@ -1,0 +1,30 @@
+JShortcut					November 17, 2002
+
+Building a new version
+----------------------
+
+    Check these files to make sure they contain the latest dates, version
+    numbers, and other information:
+
+	COPYRIGHT		Copyright date, file date
+	DONE			Version and date
+	HISTORY			Release notes for this version, date
+	README.build		Date
+	README.html		Version and date
+	VERSION			Version
+
+    In the top level directory, execute these commands:
+
+	make allclean		Clean up before building
+        make all		Builds everything (bin, apidoc, xmldoc)
+	make rel		Builds a release kit named jshortcut-<version>
+	make reljar		Builds a self-extracting jar file
+					from the release kit
+	make arch		Copy the zip, tgz, & README files to archive dir
+	make cvstag		Run "cvs tag" for this version
+
+    To clean up, execute this commands:
+
+        make allclean		Deletes all generated files
+
+    For more detailed build and clean options, see the Makefile.

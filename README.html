@@ -1,0 +1,120 @@
+<html>
+<head>
+<title>JShortcut README</title>
+</head>
+<body bgcolor=white>
+<center>
+<h1>README</h1>
+<h3>JShortcut<br>
+    v0.0.0  November 17, 2002</h3>
+</center>
+
+<p>
+<h2>Contents</h2>
+<ul>
+ <li><a href="#introduction">Introduction</a>
+ <li><a href="#homepage">Home Page</a>
+ <li><a href="#features">Features</a>
+ <li><a href="#documentation">Documentation</a>
+ <li><a href="#installjshortcut">Installing JShortcut</a>
+ <li><a href="#source">Unpacking the JShortcut Source</a>
+ <li><a href="#using">Using JShortcut</a>
+ <li><a href="#feedback">Bug Reports and Feedback</a>
+ <li><a href="#author">Author</a>
+</ul>
+
+<p>
+<a name="introduction"><h2>Introduction</h2></a>
+<p>
+JShortcut is a Java package and JNI library to allow Java programs to
+create and edit shortcuts (ShellLinks) under Windows.
+
+<p>
+<a name="homepage"><h2>Home Page</h2></a>
+<p>
+Go to the
+<a href="http://www.alumni.caltech.edu/~jimmc/jshortcut">
+JShortcut home page</a>
+to download the latest version of JShortcut.
+
+<p>
+<a name="features"><h2>Features</h2></a>
+<ul>
+  <li>Licensed under GPL, freely redistributable with source.
+  <li>Can be made to work when part of a self-extracting JAR file.
+</ul>
+
+<p>
+<a name="documentation"><h2>Documentation</h2></a>
+<p>
+The javadoc-generated
+<a href="doc/api/index.html">API Reference</a>
+provides detailed documentation on the packages and classes used in
+JShortcut (available after you have <a href="#source">unpacked the source</a>).
+
+<p>
+<a name="installjshortcut"><h2>Installing JShortcut</h2></a>
+<p>
+JShortcut is delivered in a self-extracting JAR file.
+You must have Java running on your system in order to extract it.
+<p>
+To install JShortcut from the installation JAR file (.jar extension),
+double-click on the JAR file, or run the command
+<blockquote>
+<code>
+java -jar jshortcut-<i>N_N_N</i>jar
+</code>
+</blockquote>
+This will open a dialog allowing you to specify a destination directory,
+and it will create a directory called jshortcut-<i>N_N_N</i>
+in the specified directory,
+where <i>N_N_N</i> is replaced by the JShortcut version number.
+
+<p>
+<a name="source"><h2>Unpacking the JShortcut Source</h2></a>
+<p>
+If you want to build JShortcut yourself, or just look at the source code,
+you will have to unpack the source files from the <code>src.zip</code>
+archive file with the commands
+<blockquote>
+<code>cd jshortcut-<i>N_N_N</i><br>
+      unzip src.zip</code>
+</blockquote>
+This will create a <code>src</code> directory with all of the Java, C++
+other source files,
+as well as adding a few other files (such as a Makefile) to your jshortcut
+directory.
+
+<p>
+If you want to look at the Javadoc-generated API documentation
+for the Java classes, you must first unpack those html files from
+the <code>apidoc.zip</code> archive file with the commands
+<blockquote>
+<code>cd jshortcut-<i>N_N_N</i><br>
+      unzip apidoc.zip</code>
+</blockquote>
+This will create the directory doc/api with all of the API documentation in it.
+Alternatively, you can unpack <code>src.zip</code> and then run the command
+<blockquote>
+<code>make doc</code>
+</blockquote>
+to run javadoc and create the API documents from the source files.
+
+<p>
+<a name="using"><h2>Using JShortcut</h2></a>
+<p>TBD
+
+<p>
+<a name="feedback"><h2>Bug Reports and Feedback</h2></a>
+<p>
+If you have a comment about JShortcut, or would like to report a bug,
+please send email to <a href="mailto:jimmc@nwlink.com">jimmc@nwlink.com</a>
+
+<p>
+<a name="author"><h2>Author</h2></a>
+<p>
+JShortcut was written by Jim McBeath &lt;jimmc@nwlink.com&gt;,
+<a href="http://alumni.caltech.edu/~jimmc">http://alumni.caltech.edu/~jimmc</a>
+
+</body>
+</html>
