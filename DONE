@@ -5,3 +5,6 @@
 - Make save() load existing shell link before setting values and saving,
   so that it preserves any attributes that were not explicitly set. [021230]
 - v0.2 [021230]
+- Add JShellLink.{gs}etArguments. [030703]
+- Use native encoding rather than UTF-8 for native strings. [030704]
+- v0.2b [030704]

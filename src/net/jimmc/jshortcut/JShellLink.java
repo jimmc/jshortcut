@@ -39,6 +39,10 @@ public class JShellLink {
     // @see #getPath
     String path;	//accessed from native code by name
 
+    // The arguments (after path)
+    // @see #getArguments
+    String arguments;	//accessed from native code by name
+
     // The working directory for the shortcut.
     String workingDirectory;	//accessed from native code by name
 
@@ -177,6 +181,16 @@ public class JShellLink {
     /** Get the path for this shortcut. */
     public String getPath() {
         return path;
+    }
+
+    /** Set the arguments for this shortcut. */
+    public void setArguments(String arguments) {
+        this.arguments = arguments;
+    }
+
+    /** Get the arguments for this shortcut. */
+    public String getArguments() {
+        return arguments;
     }
 
     /** Set the working directory for this shortcut. */

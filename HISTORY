@@ -1,3 +1,17 @@
+JShortcut  v0.2b  July 4, 2003  Use native string encoding
+
+  Enhancements
+
+  * The new setArguments and getArguments methods to JShellLink allow you
+    to manipluate the arguments field of the shortcut.
+
+  Bug Fixes:
+
+  * JShortcut now uses the native string encoding to convert between Java
+    strings and native strings rather than assuming UTF-8.
+
+===============================================================================
+
 JShortcut  v0.2  December 30, 2002  Ability to read existing shortcuts
 
   Enhancements
