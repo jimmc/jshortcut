@@ -10,3 +10,6 @@
 - v0.2b [030704]
 - Use context structure rather than static variables. [030911]
 - v0.3 [030912]
+- Add common_programs and common_desktopdirectory. (email of 030729) [031115]
+- Switch from GPL to LGPL. [031115]
+- v0.4 [031115]

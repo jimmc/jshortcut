@@ -1,3 +1,19 @@
+JShortcut  v0.4  November 15, 2003  Released under LGPL
+
+  Enhancements:
+
+  * The JShellLink.getDirectory method now includes the locations
+    "common_programs" and "common_desktopdirectory", corresponding to
+    CDISL_COMMON_PROGRAMS and CDISL_COMMON_DESKTOPDIRECTORY, which return
+    the All Users locations for Programs and Desktop.  Note that these will
+    not work on older versions of Windows.
+
+  Other Changes:
+
+  * JShellLink is now released under the LGPL rather than the GPL.
+
+===============================================================================
+
 JShortcut  v0.3  September 12, 2003  Use native string encoding
 
   Enhancements
