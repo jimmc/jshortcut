@@ -13,7 +13,7 @@ TOPDIR       := .
 ARCHDIR      := Arch
 MAKEINFODIR  := makeinfo
 include $(MAKEINFODIR)/javadefs.mak
--include $(TOPDIR)/localdefs.mak
+-include $(TOPDIR)/local.mak
 
 CLASSPATH    = obj
 SOURCEPATH   = src

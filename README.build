@@ -1,4 +1,4 @@
-JShortcut					November 21, 2002
+JShortcut					December 28, 2002
 
 Building a new version
 ----------------------
@@ -27,7 +27,7 @@ Building a new version
 	make reljar		Builds a self-extracting jar file
 					from the release kit
 
-    If you are maintaing archives and CVS:
+    If you are maintaining archives and CVS:
 
 	make arch		Copy the zip, tgz, & README files to archive dir
 	make cvstag		Run "cvs tag" for this version

@@ -1,1 +1,7 @@
-v0.1 [021121]
+- v0.1 [021121]
+- Add setIconLocation, getIconLocation, setIconIndex, getIconIndex. [021229]
+- Add load method. [021229]
+- Drop args 3 and 4 from four-arg constructor. [021229]
+- Make save() load existing shell link before setting values and saving,
+  so that it preserves any attributes that were not explicitly set. [021230]
+- v0.2 [021230]

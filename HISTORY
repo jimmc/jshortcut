@@ -1,3 +1,22 @@
+JShortcut  v0.2  December 30, 2002  Ability to read existing shortcuts
+
+  Enhancements
+  
+  * The new methods getIconLocation, getIconIndex, setIconLocation and
+    setIconIndex allow viewing and changing the location of the icon for
+    a shortcut.
+
+  * The new load() method allows reading an existing shortcut from disk
+    into a JShortcut object.
+
+  Bug Fixes
+
+  * Before doing a save() on a shell link, JShortcut now first does a load
+    on that shell link, so that any fields not set by the application will
+    be preserved in the shell link.
+
+===============================================================================
+
 JShortcut  v0.1  November 21, 2002  First release
 
   Enhancements
