@@ -9,6 +9,10 @@
 //may not be UTF-8, leave this undefined to use the native encoding.
 //#define USE_UTF_8
 
+extern "C" {
+
+
+
 static char* stringType = "Ljava/lang/String;";
 static char* intType = "I";
 
@@ -348,7 +352,13 @@ JShortcutSave(		// Save a shortcut
 	IShellLink *shellLink = NULL;
 	IPersistFile *persistFile = NULL;
 	TCHAR buf[MAX_PATH+1];
+
+#ifdef _WIN64
+        wchar_t wName[MAX_PATH+1];
+#else
 	WORD wName[MAX_PATH+1];
+#endif
+
 	int id;
 
 	// Initialize the COM library
@@ -450,7 +460,11 @@ JShortcutLoad(		// Load a shortcut
 	IShellLink *shellLink = NULL;
 	IPersistFile *persistFile = NULL;
 	TCHAR buf[MAX_PATH+1];
+#ifdef _WIN64
+        wchar_t wName[MAX_PATH+1];
+#else
 	WORD wName[MAX_PATH+1];
+#endif
 
 	// Initialize the COM library
 	h = CoInitialize(NULL);
@@ -700,3 +714,5 @@ Java_net_jimmc_jshortcut_JShellLink_nGetDirectory(
 	jstr = JShortcutNativeStringToJava(&ctx,buf);
 	return jstr;
 }
+
+} // extern "C"

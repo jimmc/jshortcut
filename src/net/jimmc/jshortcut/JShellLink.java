@@ -3,6 +3,9 @@
 package net.jimmc.jshortcut;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /** Provide access to shortcuts (shell links) from Java.
  *
@@ -102,8 +105,41 @@ public class JShellLink {
 		    break;
 		}
 	     }
+
+
+        if (!foundIt) {
+            try {
+            ClassLoader cl = JShellLink.class.getClassLoader();
+
+            String libname = "jshortcut_" + System.getProperty("os.arch") + ".dll";
+
+            InputStream in = cl.getResourceAsStream(libname);
+            if (in == null)
+                throw new Exception("libname: jshortcut.dll not found");
+            File tmplib = File.createTempFile("jshortcut-",".dll");
+            tmplib.deleteOnExit();
+            OutputStream out = new FileOutputStream(tmplib);
+            byte[] buf = new byte[1024];
+            for (int len; (len = in.read(buf)) != -1;)
+                out.write(buf, 0, len);
+            in.close();
+            out.close();
+
+            System.load(tmplib.getAbsolutePath());
+
+            foundIt = Boolean.TRUE;
+
+            System.out.println("jshortcut.dll loaded via tmp generated pathname: " + tmplib.getAbsolutePath());
+            
+            } catch (Exception e) {
+              foundIt = Boolean.FALSE;
+            }
+        }
+
 	     if (!foundIt) {
 		 // we did not find it in CLASSPATH
+             System.out.println("failed loading jshortcut.dll");
+
 		 throw ex;	// throw the can't-find-library exception
 	     }
 	}
@@ -265,4 +301,13 @@ public class JShellLink {
     private static native String nGetDirectory(String dirtype);
 
   //End native methods
+
+    public static void main(String argv[] )
+    {
+        JShellLink link = new JShellLink();        
+
+        System.out.println(JShellLink.getDirectory("desktop"));
+
+        System.out.println("success");
+    }
 }

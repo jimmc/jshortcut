@@ -1,0 +1,9 @@
+Author:
+
+    Jim McBeath (http://www.alumni.caltech.edu/~jimmc)
+
+Contributors:
+
+    Martin Oberzalek (kingleo at domain gmx.at):
+        * extract the DLL from the jar file if not found in PATH or CLASSPATH
+        * DLLs compiled for 64 bit architectures (amd64, ia64)
