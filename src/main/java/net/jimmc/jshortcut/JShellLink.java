@@ -3,10 +3,6 @@
 package net.jimmc.jshortcut;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
-
 /** Provide access to shortcuts (shell links) from Java.
  *
  * The native library (jshortcut.dll) is loaded when JShellLink is first
@@ -26,6 +22,7 @@ import java.io.OutputStream;
  * This makes it possible to use this library from a self-extracting jar file.
  */
 public class JShellLink {
+
     /// The folder in which this shortcut is found on disk.
     // @see #getFolder
     String folder;	//accessed from native code by name
@@ -61,87 +58,10 @@ public class JShellLink {
 	// and contributed to the jRegistryKey project,
 	// after which it was modified and used here.
 	try {
-	    String appDir = System.getProperty("JSHORTCUT_HOME");
-	    	// allow application to specify our JNI location
-	    if (appDir!=null) {
-	        // application told us to look in $JSHORTCUT_HOME for our dll
-		File f = new File(appDir,"jshortcut.dll");
-		String path = f.getAbsolutePath();
-		System.load(path);	// load JNI code
-	    } else {
-	        // No specified location for DLL, look through PATH
-	        System.loadLibrary("jshortcut");
-	    }
-	} catch (UnsatisfiedLinkError ex) {
-	    // didn't find it in our PATH, look for it in CLASSPATH
-	    String cp = System.getProperty("java.class.path");
-	    boolean foundIt = false;
-	    while (cp.length() > 0) {
-		int x = cp.indexOf(File.pathSeparator);
-		String dir;
-		if (x >= 0) {
-		    dir = cp.substring(0,x);
-		    cp = cp.substring(x+1);
-		} else {
-		    dir = cp;
-		    cp = "";
-		}
-		if (dir.length()>4 &&
-		    dir.substring(dir.length()-4).toLowerCase().equals(".jar")){
-		    // If the classpath contains a jar file,
-		    // then we look in the directory
-		    // containing the jar file.
-		    x = dir.lastIndexOf(File.separator);
-		    if (x>0)
-			dir = dir.substring(0,x);
-		    else
-			dir = ".";
-		}
-		File f = new File(dir,"jshortcut.dll");
-		if (f.exists()) {
-		    String path = f.getAbsolutePath();
-		    System.load(path);	// load JNI code
-		    foundIt = true;
-		    break;
-		}
-	     }
-
-
-        if (!foundIt) {
-            try {
-            ClassLoader cl = JShellLink.class.getClassLoader();
-
-            String libname = "jshortcut_" + System.getProperty("os.arch") + ".dll";
-
-            InputStream in = cl.getResourceAsStream(libname);
-            if (in == null)
-                throw new Exception("libname: jshortcut.dll not found");
-            File tmplib = File.createTempFile("jshortcut-",".dll");
-            tmplib.deleteOnExit();
-            OutputStream out = new FileOutputStream(tmplib);
-            byte[] buf = new byte[1024];
-            for (int len; (len = in.read(buf)) != -1;)
-                out.write(buf, 0, len);
-            in.close();
-            out.close();
-
-            System.load(tmplib.getAbsolutePath());
-
-            foundIt = Boolean.TRUE;
-
-            System.out.println("jshortcut.dll loaded via tmp generated pathname: " + tmplib.getAbsolutePath());
-            
-            } catch (Exception e) {
-              foundIt = Boolean.FALSE;
-            }
-        }
-
-	     if (!foundIt) {
-		 // we did not find it in CLASSPATH
-             System.out.println("failed loading jshortcut.dll");
-
-		 throw ex;	// throw the can't-find-library exception
-	     }
+		// load the library
+		NarSystem.loadLibrary();
+	}catch(Exception e){
+		System.out.println("Failed to load JShellLink library");
 	}
     }
 
@@ -302,12 +222,4 @@ public class JShellLink {
 
   //End native methods
 
-    public static void main(String argv[] )
-    {
-        JShellLink link = new JShellLink();        
-
-        System.out.println(JShellLink.getDirectory("desktop"));
-
-        System.out.println("success");
-    }
 }

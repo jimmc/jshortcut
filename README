@@ -1,33 +1,16 @@
-JShortcut is a JNI library to allow Java programs to create shortcuts
+JShortcut
+=========
+
+JShortcut is a JNI library, originally created by jimmyc, to allow Java programs to create shortcuts
 and menu items on Windows.
-
-For more information, see README.html.
-
-Types of download files:
-
-    jshortcut-X.Y-dist.jar    Self-extracting distribution of version X.Y
-    jshortcut-X.Y.jar         Runtime library for version X.Y
-    jshortcut_ARCH-X.Y.dll    DLL for version X.Y, architecture ARCH
-        ARCH=x86 is the 32-bit Intel architecture.  This is also the
-          architecture for the DLL with no architecture in its name.
-        ARCH=amd64 is the 64-bit AMD DLL contributed by Oberzalek.
-        ARCH=ia64 is the 64-bit Intel Architecture DLL contributed by Oberzalek.
-
-If you want to build jshortcut yourself, download the dist file and
-extract it by running the command "java -jar jshortcut-X.Y-dist.jar".
-This will also provide you with jshortcut.jar and the 32-bit x86 version of
-the DLL, so if that's what you want you don't have to download those
-files separately.
-
-If you just want to use jshortcut but don't care about building it,
-download the runtime jar file and one or more of the dll files.
-In either case, after downloading rename the files to jshortcut.jar
-and jshortcut.dll.
-
-The oberzalek jar file includes all three DLLs inside the jar file,
-as well as code to extract the appropriate DLL to a temp dir.  If you
-download that file, you should be able to use it directly as your jar file
-for any of the three platforms.
 
 Jim McBeath
 http://www.alumni.caltech.edu/~jimmc
+
+This version uses a maven-nar build [http://maven-nar.github.io/] to generate the package. This is a Work In Progress.
+
+To build use: mvn package, which will create a nar-package for the specified architecture and a global jar-package.
+
+To create a jar file with different architectures, see instructions at:
+http://maven-nar.github.io/usage.html#Assemble_libraries_made_on_different_platforms_for_distribution
+
